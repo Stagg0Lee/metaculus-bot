@@ -263,7 +263,8 @@ class TestProductionKwargShapesReachAcompletion:
             assert sent["timeout"] == declared["timeout"]
             if "reasoning" in declared:
                 assert sent["reasoning"] == declared["reasoning"]
-                if declared["reasoning"] == _PROD_REASONING_XHIGH:
+                # Lean fork runs forecasters at effort "high"; accept either production tier.
+                if declared["reasoning"] in (_PROD_REASONING_XHIGH, {"effort": "high"}):
                     saw_xhigh_reasoning = True
             if "extra_body" in declared:
                 assert sent["extra_body"] == declared["extra_body"]

@@ -118,9 +118,12 @@ FORECASTER_LLMS: list[GeneralLlm] = [
     # 2026-09-22: sol -> gpt-6-sol (GPT-6 release) and high -> xhigh (operator), matching the
     # Anthropic slot; a single prod-prompt timing probe checked it against FORECASTER_SOFT_DEADLINE.
     # 2026-09-29: gpt-6-sol -> gpt-6.1-sol; effort and deadline settings unchanged.
+    # LEAN FORK (Stagg0Lee, 2026-11-08): two-model roster, both on the Metaculus-donated
+    # key, effort high instead of xhigh, Gemini slot removed (it was pinned to a personal
+    # Google key). Upstream roster kept below in comments for an easy switch back.
     _forecaster_slot(
         "openrouter/openai/gpt-6.1-sol",
-        reasoning={"effort": "xhigh"},
+        reasoning={"effort": "high"},
     ),
     # Anthropic slot. 2026-07-15: enabled:True (provider-default adaptive thinking)
     # -> explicit effort=xhigh. Anthropic also exposes "max" one tier above xhigh —
@@ -134,12 +137,10 @@ FORECASTER_LLMS: list[GeneralLlm] = [
     # since at least 2026-02. Never send verbosity alongside reasoning.effort on an Anthropic slot.
     _forecaster_slot(
         "openrouter/anthropic/claude-opus-5.5",
-        reasoning={"effort": "xhigh"},
+        reasoning={"effort": "high"},
     ),
-    # Google slot. No explicit reasoning-effort kwarg; use provider defaults.
-    # Pinned to the personal key: the donated account's Google AI Studio BYOK
-    # integration returned quota 0 for Argon in the 2026-10-13 live probe.
-    _forecaster_slot("openrouter/google/gemini-4-argon"),
+    # Google slot (upstream). Removed in the lean fork: pinned to a personal key.
+    # _forecaster_slot("openrouter/google/gemini-4-argon"),
 ]
 
 
