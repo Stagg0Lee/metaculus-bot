@@ -27,11 +27,15 @@ from metaculus_bot import api_preflight, cli
 from metaculus_bot import forecaster as forecaster_module
 from metaculus_bot.api_preflight import ApiIdentityError, ApiUnreachableError
 from metaculus_bot.constants import DONATED_OPENROUTER_KEY_ENABLED_ENV, MANTIC_TOKEN_ENV
+from metaculus_bot.llm_configs import FORECASTER_LLMS
 from metaculus_bot.research.market_retrieval.venues import POLYMARKET_MAX_ATTEMPTS
 from metaculus_bot.run_status import RUN_STATUS
 from tests import mantic_e2e_harness as mantic
 from tests import test_offline_e2e_forecast as offline
 from tests.http_fakes import json_response
+
+# Roster size, so these pins follow whatever forecaster line-up is configured.
+_N_MODELS = len(FORECASTER_LLMS)
 
 SUMMARY_SCRIPT = Path(__file__).parents[1] / "scripts" / "forecast_run_summary.py"
 _PRIVATE_TOKEN = "fixture-token-must-not-be-persisted-123456"
@@ -219,7 +223,7 @@ def test_clean_cli_run_persists_success_and_renders_notification(
 
     status = _read_runtime_status(status_path)
     assert status["outcome"] == "clean"
-    assert status["models"]["attempted"] == status["models"]["succeeded"] == 3
+    assert status["models"]["attempted"] == status["models"]["succeeded"] == _N_MODELS
     assert status["publishing"]["forecasts"] == {"attempted": 1, "succeeded": 1, "failed": 0}
     assert status["publishing"]["comments"] == {"attempted": 1, "succeeded": 1, "failed": 0}
     assert len([request for request in recorded_requests if request.path == mantic._FORECAST_PATH]) == 1
@@ -227,7 +231,7 @@ def test_clean_cli_run_persists_success_and_renders_notification(
 
     summary, output, annotation = _render_notification(tmp_path, status_path, outcome="success")
     assert "Forecast run: Clean" in summary
-    assert "Models: 3/3 succeeded" in summary
+    assert f"Models: {_N_MODELS}/{_N_MODELS} succeeded" in summary
     assert "Forecasts: 1/1 succeeded" in summary
     assert "Comments: 1/1 succeeded" in summary
     assert "title=Published OK" in output
@@ -264,7 +268,7 @@ def test_partial_polymarket_loss_still_publishes_and_keeps_cli_red(
     assert "Polymarket HTTP 403" in summary
     assert "lookups affected" in summary
     assert "source checks affected" in summary
-    assert "3/3 succeeded" in summary
+    assert f"{_N_MODELS}/{_N_MODELS} succeeded" in summary
     assert "Forecasts: 1/1 succeeded" in summary
     assert "Comments: 1/1 succeeded" in summary
     assert "title=Published OK; Polymarket HTTP 403" in output
@@ -288,7 +292,7 @@ def test_partial_manifold_detail_failure_remains_clean_and_renders_known_success
     assert all(cause["component"] != "resolution_source" for cause in status["causes"])
     assert ("wc26brazil", 503) in detail_responses
     assert any(status_code == 200 and market_id != "wc26brazil" for market_id, status_code in detail_responses)
-    assert status["models"]["attempted"] == status["models"]["succeeded"] == 3
+    assert status["models"]["attempted"] == status["models"]["succeeded"] == _N_MODELS
     assert status["publishing"]["forecasts"] == {"attempted": 1, "succeeded": 1, "failed": 0}
     assert status["publishing"]["comments"] == {"attempted": 1, "succeeded": 1, "failed": 0}
     assert any(request.path == mantic._FORECAST_PATH for request in recorded_requests)
@@ -297,7 +301,7 @@ def test_partial_manifold_detail_failure_remains_clean_and_renders_known_success
     summary, output, annotation = _render_notification(tmp_path, status_path, outcome="success")
     assert "Forecast run: Clean" in summary
     assert "Resolution source provider failure" not in summary
-    assert "Models: 3/3 succeeded" in summary
+    assert f"Models: {_N_MODELS}/{_N_MODELS} succeeded" in summary
     assert "Forecasts: 1/1 succeeded" in summary
     assert "Comments: 1/1 succeeded" in summary
     assert "title=Published OK" in output
@@ -337,7 +341,7 @@ def test_empty_asknews_source_check_remains_clean_under_existing_alert_policy(
     ]
     assert len(empty_asknews_checks) == 1
     assert empty_asknews_checks[0]["affected"] == empty_asknews_checks[0]["attempted"] == 1
-    assert status["models"]["attempted"] == status["models"]["succeeded"] == 3
+    assert status["models"]["attempted"] == status["models"]["succeeded"] == _N_MODELS
     assert status["publishing"]["forecasts"] == {"attempted": 1, "succeeded": 1, "failed": 0}
     assert status["publishing"]["comments"] == {"attempted": 1, "succeeded": 1, "failed": 0}
     assert any(request.path == mantic._FORECAST_PATH for request in recorded_requests)
@@ -359,8 +363,8 @@ def test_model_timeout_keeps_survivors_publishing_and_cli_red(monkeypatch: pytes
 
     status = _read_runtime_status(status_path)
     assert status["outcome"] == "degraded"
-    assert status["models"]["attempted"] == 3
-    assert status["models"]["succeeded"] == 2
+    assert status["models"]["attempted"] == _N_MODELS
+    assert status["models"]["succeeded"] == _N_MODELS - 1
     assert status["models"]["timed_out"] == 1
     assert status["publishing"]["forecasts"]["succeeded"] == 1
     assert status["publishing"]["comments"]["succeeded"] == 1
@@ -368,7 +372,7 @@ def test_model_timeout_keeps_survivors_publishing_and_cli_red(monkeypatch: pytes
     assert any(request.path == mantic._COMMENT_PATH for request in recorded_requests)
 
     summary, output, annotation = _render_notification(tmp_path, status_path, outcome="failure")
-    assert "Models: 2/3 succeeded, 1 timed out, 1 dropped" in summary
+    assert f"Models: {_N_MODELS - 1}/{_N_MODELS} succeeded, 1 timed out, 1 dropped" in summary
     assert "Forecasts: 1/1 succeeded" in summary
     assert "Comments: 1/1 succeeded" in summary
     assert "1 model timed out" in output
