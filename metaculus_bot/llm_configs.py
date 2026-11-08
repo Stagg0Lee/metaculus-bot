@@ -139,8 +139,8 @@ FORECASTER_LLMS: list[GeneralLlm] = [
         "openrouter/anthropic/claude-opus-5.5",
         reasoning={"effort": "high"},
     ),
-    # Google slot (upstream). Removed in the lean fork: pinned to a personal key.
-    # _forecaster_slot("openrouter/google/gemini-4-argon"),
+    # Google slot: upstream runs gemini-4-argon here, pinned to a personal Google key.
+    # Removed in the lean fork; see LEAN.md to restore it.
 ]
 
 
